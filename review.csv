@@ -1,5 +1,4 @@
 Employee ID,New Job Code,Required Course ID,Required Course Title,Best Match Taken Title,Best Match Course ID,Similarity %,Taken Date,Suggestion,Needs Course? (yes/no)
-1001,D5-RN,HZ-200,Taking Care of Hazardous Materials,Hazardous Materials Handling,HAZ-99,71,2024-03-10,MAYBE - check it,yes
-1001,D5-RN,FIRE-101,Fire Safety in the Workplace,Patient Privacy (HIPAA),HIPAA-1,19,2024-05-01,no close match - needs it,yes
-1001,D5-RN,BLS-500,Basic Life Support for Healthcare Providers,CPR and AED Certification,CPR-12,26,2023-11-01,no close match - needs it,yes
-1002,D5-RN,HZ-200,Taking Care of Hazardous Materials,Slip Trip and Fall Prevention,SLIP-1,32,2024-05-01,no close match - needs it,yes
+1001,4150299,100293,Blood Administration and Documentation - New Hire (NH NAS),Blood Administration Documentation (New Hire),BA-OLD,92,2024-01-15,LIKELY same topic - review,no
+1001,4150299,100777,Hand Hygiene - Annual,Infection Control Basics,IC-1,34,2023-09-01,no close match - needs it,yes
+1002,4150299,100293,Blood Administration and Documentation - New Hire (NH NAS),Slips Trips and Falls Prevention,SLIP-1,28,2024-05-01,no close match - needs it,yes

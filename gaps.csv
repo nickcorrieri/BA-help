@@ -1,5 +1,4 @@
 Employee ID,New Job Code,Required Course ID,Required Course Title,Status
-1001,D5-RN,HZ-200,Taking Care of Hazardous Materials,MISSING (never taken)
-1001,D5-RN,FIRE-101,Fire Safety in the Workplace,MISSING (never taken)
-1001,D5-RN,BLS-500,Basic Life Support for Healthcare Providers,EXPIRED (>5yr or no date)
-1002,D5-RN,HZ-200,Taking Care of Hazardous Materials,MISSING (never taken)
+1001,4150299,100293,Blood Administration and Documentation - New Hire (NH NAS),MISSING (never taken)
+1001,4150299,100777,Hand Hygiene - Annual,MISSING (never taken)
+1002,4150299,100293,Blood Administration and Documentation - New Hire (NH NAS),MISSING (never taken)

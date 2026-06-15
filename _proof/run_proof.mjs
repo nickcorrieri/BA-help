@@ -15,14 +15,15 @@ const root = path.join(here, "..");
 const P = (course, title, dept, job, combo, state) =>
   [course, title, "", dept, dept + " desc", job, job + " title", combo, "", "", "sys", state];
 const PAIRINGS = [
-  ["Course-ext-id", "Full-course-name", "Course-notes", "Dept-code", "Dept-desc",
-   "Job-code", "Job-title", "Combo", "Date-added", "Date-edited", "Added-by", "State"],
-  P("HZ-200", "Taking Care of Hazardous Materials", "D5", "RN", "D5-RN", "Active"),
-  P("FIRE-101", "Fire Safety in the Workplace", "D5", "RN", "D5-RN", "Active"),
-  P("BLS-500", "Basic Life Support for Healthcare Providers", "D5", "RN", "D5-RN", "Active"),
-  P("HIPAA-1", "Patient Privacy (HIPAA)", "D5", "RN", "D5-RN", "Active"),
-  // decoy: SAME Job-code "RN" but a different department/Combo -> must NOT be pulled in
-  P("XRAY-9", "Radiation Safety", "D9", "RN", "D9-RN", "Active"),
+  ["Course-Ext-ID", "Full-Course-Name", "Course-Notes", "DEPT-CODE", "DEPT-DESC",
+   "JOB-CODE", "JOB-TITLE", "COMBO", "DATE-ADDED", "DATE-EDITED", "ADDED-BY", "STATE"],
+  // COMBO is DEPT-CODE + JOB-CODE glued with no separator (4150 + 299 = 4150299)
+  P("HZ-200", "Taking Care of Hazardous Materials", "4150", "299", "4150299", "Active"),
+  P("FIRE-101", "Fire Safety in the Workplace", "4150", "299", "4150299", "Active"),
+  P("BLS-500", "Basic Life Support for Healthcare Providers", "4150", "299", "4150299", "Active"),
+  P("HIPAA-1", "Patient Privacy (HIPAA)", "4150", "299", "4150299", "Active"),
+  // decoy: SAME JOB-CODE 299 but a different DEPT/COMBO -> must NOT be pulled in
+  P("XRAY-9", "Radiation Safety", "9999", "299", "9999299", "Active"),
 ];
 const TAKEN = [
   ["Employee ID", "Course ID", "Course Title", "Date Completed"],
@@ -33,9 +34,9 @@ const TAKEN = [
   ["1002", "XYZ-1", "Slip Trip and Fall Prevention", "2024-05-01"], // nothing relevant
 ];
 const ROSTER = [
-  ["Employee ID", "New Job Code"],     // holds the Combo value (Dept-code + Job-code)
-  ["1001", "D5-RN"],
-  ["1002", "D5-RN"],
+  ["Employee ID", "New Job Code"],     // holds the glued COMBO value (DEPT-CODE + JOB-CODE, e.g. 4150299)
+  ["1001", "4150299"],
+  ["1002", "4150299"],
 ];
 
 // ---- tiny mock of the ExcelScript workbook API the script uses

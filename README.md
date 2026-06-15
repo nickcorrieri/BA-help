@@ -65,10 +65,12 @@ in the CONFIG block to match your sheet, save.
 > Prefer matching by header name instead? Set `USE_COLUMN_LETTERS = false` and
 > put the header text in those same CONFIG slots. Both modes are tested.
 
-The job key is **`Combo`** (Dept-code + Job-code), so a nurse only gets courses
-for her specific department+job. The `Roster`'s new-job column must therefore hold
-a **Combo value**. *(optional `Catalog` sheet — `Course ID`, `Course Title` —
-only needed if Pairings had no title column.)*
+The job key is **`COMBO`** = `DEPT-CODE` + `JOB-CODE` **glued with no separator**
+(e.g. `4150` + `299` = **`4150299`**), so a nurse only gets courses for her
+specific department+job. The `Roster`'s new-job column must therefore hold the
+combo in that **same glued form** (`4150299`, not `4150-299`). *(optional
+`Catalog` sheet — `Course ID`, `Course Title` — only needed if Pairings had no
+title column.)*
 
 ---
 
