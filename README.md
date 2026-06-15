@@ -37,20 +37,38 @@ so they produce equivalent results — choose by what's allowed, not by quality.
 
 ## Set up your workbook (one time)
 
-Put your data on sheets named exactly:
+Put your data on sheets named exactly **`Pairings`** (Table 1),
+**`Taken`** (Table 2), and **`Roster`** (the 12 nurses). Data should start in
+**row 1** (header row), with the real records below.
+*(Format the `Taken` completion-date column as a Date so the 5-year check reads it.)*
 
-- **`Pairings`** (Table 1) — one row per job-code + course it requires.
-  Headers: `Job Code`, `Course ID`, and ideally `Course Title`.
-- **`Taken`** (Table 2) — every course the transferring nurses have taken.
-  Headers: `Employee ID`, `Course ID`, `Course Title`, `Date Completed`.
-  *(Format the date column as a Date so the 5-year check reads it correctly.)*
-- **`Roster`** — the 12 nurses. Headers: `Employee ID`, `New Job Code`.
-- *(optional)* **`Catalog`** — `Course ID`, `Course Title` — only needed if
-  `Pairings` has no title column, so the fuzzy step still has titles to match.
+### Pointing the tools at your columns (column letters)
 
-If your real column names differ, edit the `CONFIG` block at the top of whichever
-file you're using. IDs are matched trimmed + uppercased, so minor spacing/case
-differences won't break it.
+You don't have to make your headers match anything. Every tool has a
+**`USE_COLUMN_LETTERS`** switch (default **on**): you just tell it which **column
+letter** holds each value — read straight off the top of the Excel window — and
+the header row is ignored.
+
+The **Pairings** letters are **already filled in** from the order you gave me:
+
+| Value | Column |
+|-------|--------|
+| Course id (`Course-ext-id`) | **A** |
+| Course title (`Full-course-name`) | **B** |
+| Job key — **Combo** (Dept+Job) | **H** |
+| State (optional) | **L** |
+
+You only need to set the letters for **Taken** and **Roster** (defaults are
+`A/B/C/D` and `A/B`, with `' VERIFY` comments). Open the file, change the letters
+in the CONFIG block to match your sheet, save.
+
+> Prefer matching by header name instead? Set `USE_COLUMN_LETTERS = false` and
+> put the header text in those same CONFIG slots. Both modes are tested.
+
+The job key is **`Combo`** (Dept-code + Job-code), so a nurse only gets courses
+for her specific department+job. The `Roster`'s new-job column must therefore hold
+a **Combo value**. *(optional `Catalog` sheet — `Course ID`, `Course Title` —
+only needed if Pairings had no title column.)*
 
 ---
 

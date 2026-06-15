@@ -302,6 +302,31 @@ End Sub
 
 
 ' ===================== small helpers ================================
+Private Function ReadA1(ws As Worksheet) As Variant
+    ' read the used data as a 2D array ANCHORED at A1, so column letters line up
+    Dim ur As Range: Set ur = ws.UsedRange
+    Dim lastR As Long, lastC As Long
+    lastR = ur.Row + ur.Rows.Count - 1
+    lastC = ur.Column + ur.Columns.Count - 1
+    ReadA1 = ws.Range(ws.Cells(1, 1), ws.Cells(lastR, lastC)).Value
+End Function
+
+Private Function SrcCol(arr As Variant, spec As String) As Long
+    ' column lookup for SOURCE tables: letter (A/B/C) or header name per USE_COLUMN_LETTERS
+    If Len(spec) = 0 Then SrcCol = 0: Exit Function
+    If USE_COLUMN_LETTERS Then SrcCol = LetterToCol(spec) Else SrcCol = ColIdx(arr, spec)
+End Function
+
+Private Function LetterToCol(s As String) As Long
+    ' "A" -> 1, "B" -> 2, ... "AA" -> 27
+    Dim t As String: t = UCase$(Trim$(s))
+    Dim i As Long, n As Long
+    For i = 1 To Len(t)
+        n = n * 26 + (Asc(Mid$(t, i, 1)) - 64)
+    Next i
+    LetterToCol = n
+End Function
+
 Private Function ColIdx(arr As Variant, headerName As String) As Long
     ' returns the 1-based column number whose row-1 header matches headerName
     Dim c As Long

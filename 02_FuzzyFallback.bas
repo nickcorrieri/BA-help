@@ -29,10 +29,15 @@ Private Const SHEET_TAKEN  As String = "Taken"
 Private Const SHEET_GAPS   As String = "Gaps"
 Private Const SHEET_REVIEW As String = "Review"
 
-Private Const H_TAKEN_EMP    As String = "Employee ID"
-Private Const H_TAKEN_COURSE As String = "Course ID"
-Private Const H_TAKEN_TITLE  As String = "Course Title"
-Private Const H_TAKEN_DATE   As String = "Date Completed"
+' If TRUE these are COLUMN LETTERS (header row ignored); if FALSE, header names.
+' Keep this the SAME as in 01_GapFinder.bas.
+Private Const USE_COLUMN_LETTERS As Boolean = True
+
+' Table 2 - Taken (VERIFY against your sheet; same as in 01_GapFinder.bas)
+Private Const H_TAKEN_EMP    As String = "A"  ' Employee ID
+Private Const H_TAKEN_COURSE As String = "B"  ' course id
+Private Const H_TAKEN_TITLE  As String = "C"  ' course title
+Private Const H_TAKEN_DATE   As String = "D"  ' completion date
 
 Private Const YEARS_VALID As Integer = 5
 
@@ -68,12 +73,13 @@ Public Sub BuildReviewFuzzy()
     cutoff = DateSerial(Year(Date) - YEARS_VALID, Month(Date), Day(Date))
 
     Dim arrT As Variant, arrG As Variant
-    arrT = wsT.UsedRange.Value
-    arrG = wsG.UsedRange.Value
+    arrT = ReadA1(wsT)            ' Taken is a SOURCE table -> anchored at A1 for letters
+    arrG = wsG.UsedRange.Value    ' Gaps is OUR output -> always read by header name
 
+    ' Taken (source): SrcCol respects letter mode. Gaps (our sheet): ColIdx by header.
     Dim tEmp&, tCourse&, tTitle&, tDate&
-    tEmp = ColIdx(arrT, H_TAKEN_EMP): tCourse = ColIdx(arrT, H_TAKEN_COURSE)
-    tTitle = ColIdx(arrT, H_TAKEN_TITLE): tDate = ColIdx(arrT, H_TAKEN_DATE)
+    tEmp = SrcCol(arrT, H_TAKEN_EMP): tCourse = SrcCol(arrT, H_TAKEN_COURSE)
+    tTitle = SrcCol(arrT, H_TAKEN_TITLE): tDate = SrcCol(arrT, H_TAKEN_DATE)
 
     Dim gEmp&, gJob&, gCourse&, gTitle&
     gEmp = ColIdx(arrG, "Employee ID"): gJob = ColIdx(arrG, "New Job Code")
@@ -292,6 +298,24 @@ End Function
 
 
 ' ===================== shared helpers ==============================
+Private Function ReadA1(ws As Worksheet) As Variant
+    Dim ur As Range: Set ur = ws.UsedRange
+    ReadA1 = ws.Range(ws.Cells(1, 1), _
+        ws.Cells(ur.Row + ur.Rows.Count - 1, ur.Column + ur.Columns.Count - 1)).Value
+End Function
+
+Private Function SrcCol(arr As Variant, spec As String) As Long
+    If Len(spec) = 0 Then SrcCol = 0: Exit Function
+    If USE_COLUMN_LETTERS Then SrcCol = LetterToCol(spec) Else SrcCol = ColIdx(arr, spec)
+End Function
+
+Private Function LetterToCol(s As String) As Long
+    Dim t As String: t = UCase$(Trim$(s))
+    Dim i As Long, n As Long
+    For i = 1 To Len(t): n = n * 26 + (Asc(Mid$(t, i, 1)) - 64): Next i
+    LetterToCol = n
+End Function
+
 Private Function ColIdx(arr As Variant, headerName As String) As Long
     Dim c As Long
     For c = LBound(arr, 2) To UBound(arr, 2)

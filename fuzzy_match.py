@@ -63,11 +63,14 @@ STRONG = 0.75         # 0.0 - 1.0
 WEAK   = 0.45         # 0.0 - 1.0
 # --------------------------------------------------------------------
 
-# Column headers expected in the CSV files (edit if your sheets differ).
-# gaps.csv (from the macro):
+# gaps.csv is produced by the Phase-1 macro, so its headers are fixed/known:
 G_EMP, G_COURSE, G_TITLE = "Employee ID", "Required Course ID", "Required Course Title"
-# taken.csv (Table 2):
-T_EMP, T_COURSE, T_TITLE, T_DATE = "Employee ID", "Course ID", "Course Title", "Date Completed"
+
+# taken.csv is YOUR Table 2 export. If USE_COLUMN_LETTERS is True, the T_*
+# values below are COLUMN LETTERS (A, B, C...) and taken.csv's header row is
+# ignored. If False, they're header names matched against the first row.
+USE_COLUMN_LETTERS = True
+T_EMP, T_COURSE, T_TITLE, T_DATE = "A", "B", "C", "D"   # verify against your sheet
 
 # Generic words stripped before comparing titles, so the score reflects
 # the actual topic. Add your own org's filler words here.
@@ -151,28 +154,54 @@ def need_col(rows, col, path):
                  f"Fix the header names in the CONFIG section of this script.")
 
 
+def letter_to_index(s):
+    s = s.strip().upper()
+    n = 0
+    for ch in s:
+        n = n * 26 + (ord(ch) - 64)
+    return n - 1   # "A" -> 0
+
+
+def load_taken():
+    """Return Table 2 as normalized dicts: emp, course, title, date.
+    Honors USE_COLUMN_LETTERS (letters = positions, header row skipped)."""
+    if not os.path.exists(TAKEN_CSV):
+        sys.exit(f"ERROR: can't find {TAKEN_CSV}\nExport the Taken sheet to CSV here first.")
+    with open(TAKEN_CSV, newline="", encoding="utf-8-sig") as f:
+        if USE_COLUMN_LETTERS:
+            rows = list(csv.reader(f))[1:]  # skip header row
+            ie, ic, it, idt = (letter_to_index(x) for x in (T_EMP, T_COURSE, T_TITLE, T_DATE))
+            cell = lambda r, i: r[i] if 0 <= i < len(r) else ""
+            return [{"emp": cell(r, ie), "course": cell(r, ic),
+                     "title": cell(r, it), "date": cell(r, idt)} for r in rows]
+        recs = list(csv.DictReader(f))
+        for c in (T_EMP, T_COURSE, T_TITLE):
+            if recs and c not in recs[0]:
+                sys.exit(f"ERROR: column '{c}' not in taken.csv. Found: {list(recs[0].keys())}")
+        return [{"emp": r.get(T_EMP, ""), "course": r.get(T_COURSE, ""),
+                 "title": r.get(T_TITLE, ""), "date": r.get(T_DATE, "")} for r in recs]
+
+
 # ----------------------------- MATCH --------------------------------
 def run_match():
     gaps = read_csv(GAPS_CSV)
-    taken = read_csv(TAKEN_CSV)
     for c in (G_EMP, G_COURSE):
         need_col(gaps, c, GAPS_CSV)
-    for c in (T_EMP, T_COURSE, T_TITLE):
-        need_col(taken, c, TAKEN_CSV)
+    taken = load_taken()
 
     cutoff = cutoff_date()
 
     # group each nurse's recent taken courses
     by_emp = {}
     for r in taken:
-        emp = (r.get(T_EMP) or "").strip().upper()
+        emp = (r["emp"] or "").strip().upper()
         if not emp:
             continue
-        d = parse_date(r.get(T_DATE, ""))
+        d = parse_date(r["date"])
         recent = (d is not None and d >= cutoff)
         by_emp.setdefault(emp, []).append({
-            "title": r.get(T_TITLE, ""),
-            "course": r.get(T_COURSE, ""),
+            "title": r["title"],
+            "course": r["course"],
             "date": d,
             "recent": recent,
         })
