@@ -206,7 +206,7 @@ def load_taken(t_emp, t_course, t_title, t_date):
 # ----------------------------- MATCH --------------------------------
 def run_match():
     gaps = read_csv(GAPS_CSV)
-    for c in (G_EMP, G_COURSE):
+    for c in (G_EMP, G_COURSE, G_TITLE):
         need_col(gaps, c, GAPS_CSV)
     taken = load_taken(*ask_taken_letters())
 

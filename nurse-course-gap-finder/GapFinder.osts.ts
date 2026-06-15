@@ -293,7 +293,7 @@ function parseDate(s: string): number | null {
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) return +m[1] * 10000 + +m[2] * 100 + +m[3];
   m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
-  if (m) { let y = +m[3]; if (y < 100) y += 2000; return y * 10000 + +m[1] * 100 + +m[2]; }
+  if (m) { let y = +m[3]; if (y < 100) y += y < 30 ? 2000 : 1900; return y * 10000 + +m[1] * 100 + +m[2]; }
   const t = Date.parse(s);
   if (!isNaN(t)) { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
   return null;

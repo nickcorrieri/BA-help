@@ -94,7 +94,7 @@ Public Sub BuildReviewFuzzy()
     gEmp = ColIdx(arrG, "Employee ID"): gJob = ColIdx(arrG, "New Job Code")
     gCourse = ColIdx(arrG, "Required Course ID"): gTitle = ColIdx(arrG, "Required Course Title")
 
-    If tEmp = 0 Or tTitle = 0 Or gEmp = 0 Or gCourse = 0 Then
+    If tEmp = 0 Or tTitle = 0 Or gEmp = 0 Or gCourse = 0 Or gTitle = 0 Then
         MsgBox "Missing an expected column on Taken or Gaps. Check headers.", vbExclamation
         Exit Sub
     End If
@@ -136,29 +136,33 @@ Public Sub BuildReviewFuzzy()
             bestScore = 0
 
             If byEmp.Exists(emp) Then
-                Dim recs() As String, recsRecent As Boolean
-                ' pass 1: only recent; pass 2: all (if none recent)
-                Dim pass As Integer
-                For pass = 1 To 2
-                    recs = Split(byEmp(emp), Chr(2))
-                    Dim r As Long
-                    For r = LBound(recs) To UBound(recs)
-                        If Len(recs(r)) > 0 Then
-                            Dim parts() As String: parts = Split(recs(r), Chr(1))
-                            Dim isRecent As Boolean: isRecent = (parts(0) = "1")
-                            If (pass = 1 And isRecent) Or (pass = 2 And Not foundAny) Then
-                                Dim sc As Double: sc = Similarity(reqTitle, parts(3))
-                                If sc > bestScore Then
-                                    bestScore = sc
-                                    bestDate = parts(1): bestCourse = parts(2)
-                                    bestTitle = parts(3): bestRecent = isRecent
-                                End If
-                                foundAny = True
+                Dim recs() As String
+                recs = Split(byEmp(emp), Chr(2))
+                ' First pass: does this employee have ANY recent taken records?
+                Dim hasRecent As Boolean: hasRecent = False
+                Dim r As Long
+                For r = LBound(recs) To UBound(recs)
+                    If Len(recs(r)) > 0 And Left$(recs(r), 1) = "1" Then
+                        hasRecent = True: Exit For
+                    End If
+                Next r
+                ' Score pass: if recent records exist, compare only against those;
+                ' otherwise compare against all records (the "fallback" path).
+                For r = LBound(recs) To UBound(recs)
+                    If Len(recs(r)) > 0 Then
+                        Dim parts() As String: parts = Split(recs(r), Chr(1))
+                        Dim isRecent As Boolean: isRecent = (parts(0) = "1")
+                        If (hasRecent And isRecent) Or Not hasRecent Then
+                            Dim sc As Double: sc = Similarity(reqTitle, parts(3))
+                            If sc > bestScore Then
+                                bestScore = sc
+                                bestDate = parts(1): bestCourse = parts(2)
+                                bestTitle = parts(3): bestRecent = isRecent
                             End If
+                            foundAny = True
                         End If
-                    Next r
-                    If foundAny And pass = 1 Then Exit For   ' had recent ones, don't fall back
-                Next pass
+                    End If
+                Next r
             End If
 
             Dim suggestion$, needs$
