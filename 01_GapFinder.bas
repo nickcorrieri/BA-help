@@ -36,12 +36,20 @@ Private Const SHEET_CATALOG  As String = "Catalog"    ' OPTIONAL: Course ID -> T
 Private Const SHEET_GAPS     As String = "Gaps"       ' output (created/overwritten automatically)
 Private Const SHEET_REVIEW   As String = "Review"     ' used by BuildFinal (filled by fuzzy step)
 Private Const SHEET_FINAL    As String = "Final"      ' final result (created by BuildFinal)
+Private Const SHEET_SETTINGS As String = "Settings"   ' optional column map (shared with the Office Script)
 
 ' Columns -------------------------------------------------------------
 ' If TRUE, the values below are COLUMN LETTERS (A, B, C...) and the header
 ' row is ignored. If FALSE, they are header NAMES matched against row 1.
 ' (Letters are easy: read them off the top of your sheet. Data must start in row 1.)
 Private Const USE_COLUMN_LETTERS As Boolean = True
+
+' ASK-vs-DON'T-ASK (letter mode only):
+'   True  = when you run BuildGaps it asks you to CLICK each column, then saves
+'           your picks to a "Settings" sheet (shared with the Office Script).
+'   False = don't prompt. A "Settings" sheet is still honored if present;
+'           otherwise the prefilled letters below are used.
+Private Const ASK_AT_RUNTIME As Boolean = False
 
 ' Table 1 - Pairings (prefilled from the column order you listed)
 Private Const H_PAIR_JOB    As String = "H"   ' Combo (Dept-code + Job-code) -- the job key
@@ -66,6 +74,19 @@ Private Const H_CAT_TITLE  As String = "B"
 
 ' Rule ----------------------------------------------------------------
 Private Const YEARS_VALID As Integer = 5     ' a past course only counts if taken within this many years
+
+' Settings-sheet row labels (MUST match the Office Script exactly, so all tools
+' share one Settings sheet). Don't change these unless you change them everywhere.
+Private Const LBL_PAIR_COURSE As String = "Pairings - Course id (e.g. Course-Ext-ID)"
+Private Const LBL_PAIR_TITLE  As String = "Pairings - Course title (blank = none)"
+Private Const LBL_PAIR_JOB    As String = "Pairings - Job key (COMBO)"
+Private Const LBL_PAIR_STATE  As String = "Pairings - State (optional)"
+Private Const LBL_TAKEN_EMP    As String = "Taken - Employee ID"
+Private Const LBL_TAKEN_COURSE As String = "Taken - Course id"
+Private Const LBL_TAKEN_TITLE  As String = "Taken - Course title"
+Private Const LBL_TAKEN_DATE   As String = "Taken - Date completed"
+Private Const LBL_ROST_EMP As String = "Roster - Employee ID"
+Private Const LBL_ROST_JOB As String = "Roster - New job (COMBO)"
 ' ====================================================================
 
 
@@ -85,24 +106,32 @@ Public Sub BuildGaps()
     Dim cutoff As Date
     cutoff = DateSerial(Year(Date) - YEARS_VALID, Month(Date), Day(Date))
 
+    ' ---- if asked, let the user click each column (saves to Settings) -
+    If ASK_AT_RUNTIME And USE_COLUMN_LETTERS Then AskAllColumns
+
     ' ---- read everything into memory (fast), anchored at A1 ---------
     Dim arrP As Variant, arrT As Variant, arrR As Variant
     arrP = ReadA1(wsP)
     arrT = ReadA1(wsT)
     arrR = ReadA1(wsR)
 
-    ' ---- column indices (source tables: SrcCol respects letter mode)-
+    ' ---- resolve each column: Settings sheet if present, else default
     Dim pJob&, pCourse&, pTitle&, pState&
-    pJob = SrcCol(arrP, H_PAIR_JOB): pCourse = SrcCol(arrP, H_PAIR_COURSE)
-    pTitle = IIf(Len(H_PAIR_TITLE) > 0, SrcCol(arrP, H_PAIR_TITLE), 0)
-    pState = IIf(Len(H_PAIR_STATE) > 0, SrcCol(arrP, H_PAIR_STATE), 0)
+    pJob = SrcCol(arrP, ColSpec(LBL_PAIR_JOB, H_PAIR_JOB))
+    pCourse = SrcCol(arrP, ColSpec(LBL_PAIR_COURSE, H_PAIR_COURSE))
+    Dim sTitle$: sTitle = ColSpec(LBL_PAIR_TITLE, H_PAIR_TITLE)
+    Dim sState$: sState = ColSpec(LBL_PAIR_STATE, H_PAIR_STATE)
+    pTitle = IIf(Len(sTitle) > 0, SrcCol(arrP, sTitle), 0)
+    pState = IIf(Len(sState) > 0, SrcCol(arrP, sState), 0)
 
     Dim tEmp&, tCourse&, tDate&
-    tEmp = SrcCol(arrT, H_TAKEN_EMP): tCourse = SrcCol(arrT, H_TAKEN_COURSE)
-    tDate = SrcCol(arrT, H_TAKEN_DATE)
+    tEmp = SrcCol(arrT, ColSpec(LBL_TAKEN_EMP, H_TAKEN_EMP))
+    tCourse = SrcCol(arrT, ColSpec(LBL_TAKEN_COURSE, H_TAKEN_COURSE))
+    tDate = SrcCol(arrT, ColSpec(LBL_TAKEN_DATE, H_TAKEN_DATE))
 
     Dim rEmp&, rNew&
-    rEmp = SrcCol(arrR, H_ROST_EMP): rNew = SrcCol(arrR, H_ROST_NEWJOB)
+    rEmp = SrcCol(arrR, ColSpec(LBL_ROST_EMP, H_ROST_EMP))
+    rNew = SrcCol(arrR, ColSpec(LBL_ROST_JOB, H_ROST_NEWJOB))
 
     If pJob = 0 Or pCourse = 0 Or tEmp = 0 Or tCourse = 0 Or tDate = 0 _
        Or rEmp = 0 Or rNew = 0 Then
@@ -315,6 +344,85 @@ Private Function SrcCol(arr As Variant, spec As String) As Long
     ' column lookup for SOURCE tables: letter (A/B/C) or header name per USE_COLUMN_LETTERS
     If Len(spec) = 0 Then SrcCol = 0: Exit Function
     If USE_COLUMN_LETTERS Then SrcCol = LetterToCol(spec) Else SrcCol = ColIdx(arr, spec)
+End Function
+
+Private Function ColSpec(label As String, def As String) As String
+    ' effective spec for a field: value from the Settings sheet (by label), else default.
+    ' Only consulted in letter mode.
+    ColSpec = def
+    If Not USE_COLUMN_LETTERS Then Exit Function
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(SHEET_SETTINGS)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+    Dim arr As Variant: arr = ws.UsedRange.Value
+    If Not IsArray(arr) Then Exit Function
+    If UBound(arr, 2) < 2 Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(arr, 1)
+        If StrComp(Trim$(CStr2(arr(i, 1))), label, vbTextCompare) = 0 Then
+            Dim v As String: v = Trim$(CStr2(arr(i, 2)))
+            If v <> "" Then ColSpec = v
+            Exit Function
+        End If
+    Next i
+End Function
+
+Public Sub AskAllColumns()
+    ' prompt the user to CLICK each column; save picks to the Settings sheet
+    Dim labels As Variant, defs As Variant
+    labels = Array(LBL_PAIR_COURSE, LBL_PAIR_TITLE, LBL_PAIR_JOB, LBL_PAIR_STATE, _
+                   LBL_TAKEN_EMP, LBL_TAKEN_COURSE, LBL_TAKEN_TITLE, LBL_TAKEN_DATE, _
+                   LBL_ROST_EMP, LBL_ROST_JOB)
+    defs = Array(H_PAIR_COURSE, H_PAIR_TITLE, H_PAIR_JOB, H_PAIR_STATE, _
+                 H_TAKEN_EMP, H_TAKEN_COURSE, H_TAKEN_TITLE, H_TAKEN_DATE, _
+                 H_ROST_EMP, H_ROST_NEWJOB)
+    Dim ws As Worksheet: Set ws = EnsureSettings(labels, defs)
+
+    Dim i As Long
+    For i = LBound(labels) To UBound(labels)
+        Dim rng As Range: Set rng = Nothing
+        On Error Resume Next
+        Set rng = Application.InputBox( _
+            Prompt:="Click any cell in the column for:" & vbCrLf & vbCrLf & labels(i) & _
+                    vbCrLf & vbCrLf & "(Cancel = keep '" & CStr2(ws.Cells(i + 2, 2).Value) & "')", _
+            Title:="Pick column " & (i + 1) & " of " & (UBound(labels) + 1), Type:=8)
+        On Error GoTo 0
+        If Not rng Is Nothing Then ws.Cells(i + 2, 2).Value = ColLetter(rng.Column)
+    Next i
+    MsgBox "Saved your column choices to the '" & SHEET_SETTINGS & "' sheet.", vbInformation
+End Sub
+
+Private Function EnsureSettings(labels As Variant, defs As Variant) As Worksheet
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(SHEET_SETTINGS)
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        ws.Name = SHEET_SETTINGS
+        ws.Range("A1:B1").Value = Array("Setting  (put the column LETTER on the right)", "Column")
+        Dim i As Long
+        For i = LBound(labels) To UBound(labels)
+            ws.Cells(i + 2, 1).Value = labels(i)
+            ws.Cells(i + 2, 2).Value = defs(i)
+        Next i
+        ws.Rows(1).Font.Bold = True
+        ws.Columns("A:B").AutoFit
+    End If
+    Set EnsureSettings = ws
+End Function
+
+Private Function ColLetter(n As Long) As String
+    ' 1 -> "A", 27 -> "AA"
+    Dim s As String, r As Long
+    Do While n > 0
+        r = (n - 1) Mod 26
+        s = Chr$(65 + r) & s
+        n = (n - 1) \ 26
+    Loop
+    ColLetter = s
 End Function
 
 Private Function LetterToCol(s As String) As Long

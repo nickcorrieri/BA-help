@@ -152,5 +152,31 @@ check("Final excludes the HZ-200 row reviewer marked 'no'",
   !final.find((x) => x["Employee ID"] === "1001" && x["Course ID"] === "HZ-200"));
 check("Final keeps 1001 FIRE-101", !!final.find((x) => x["Employee ID"] === "1001" && x["Course ID"] === "FIRE-101"));
 
+// ---- Settings sheet: first run auto-creates it; a filled Settings overrides letters
+console.log("\nSettings sheet (ASK mode):");
+check("first run auto-created a 'Settings' sheet", !!wb._get("Settings") && wb._get("Settings").length > 1);
+
+// pre-seed a Settings sheet that points Taken-Title at the WRONG column (D = the date),
+// then confirm the fuzzy match degrades -> proves the Settings letters actually take effect
+const settings = [["Setting", "Column"]];
+for (const [label, val] of [
+  ["Pairings - Course id (e.g. Course-Ext-ID)", "A"],
+  ["Pairings - Course title (blank = none)", "B"],
+  ["Pairings - Job key (COMBO)", "H"],
+  ["Pairings - State (optional)", "L"],
+  ["Taken - Employee ID", "A"],
+  ["Taken - Course id", "B"],
+  ["Taken - Course title", "D"],   // <-- wrong on purpose (points at the date)
+  ["Taken - Date completed", "D"],
+  ["Roster - Employee ID", "A"],
+  ["Roster - New job (COMBO)", "B"],
+]) settings.push([label, val]);
+const wb3 = makeWorkbook({ Pairings: PAIRINGS, Taken: TAKEN, Roster: ROSTER, Settings: settings });
+(await loadScript("review"))(wb3);
+const review3 = asObjects(wb3._get("Review"));
+const hz3 = review3.find((x) => x["Employee ID"] === "1001" && x["Required Course ID"] === "HZ-200");
+check("Settings override took effect (HZ-200 no longer matches at 60%+)",
+  Number(hz3["Similarity %"]) < 60);
+
 console.log("\n" + (failures === 0 ? "ALL CHECKS PASSED" : `${failures} CHECK(S) FAILED`));
 process.exit(failures === 0 ? 0 : 1);

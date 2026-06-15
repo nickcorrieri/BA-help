@@ -25,9 +25,10 @@ Attribute VB_Name = "FuzzyFallback"
 Option Explicit
 
 ' ---- must match the CONFIG in 01_GapFinder.bas ----------------------
-Private Const SHEET_TAKEN  As String = "Taken"
-Private Const SHEET_GAPS   As String = "Gaps"
-Private Const SHEET_REVIEW As String = "Review"
+Private Const SHEET_TAKEN    As String = "Taken"
+Private Const SHEET_GAPS     As String = "Gaps"
+Private Const SHEET_REVIEW   As String = "Review"
+Private Const SHEET_SETTINGS As String = "Settings"   ' honored if present (BuildGaps writes it in ASK mode)
 
 ' If TRUE these are COLUMN LETTERS (header row ignored); if FALSE, header names.
 ' Keep this the SAME as in 01_GapFinder.bas.
@@ -38,6 +39,12 @@ Private Const H_TAKEN_EMP    As String = "A"  ' Employee ID
 Private Const H_TAKEN_COURSE As String = "B"  ' course id
 Private Const H_TAKEN_TITLE  As String = "C"  ' course title
 Private Const H_TAKEN_DATE   As String = "D"  ' completion date
+
+' Settings-sheet row labels (MUST match 01_GapFinder.bas and the Office Script)
+Private Const LBL_TAKEN_EMP    As String = "Taken - Employee ID"
+Private Const LBL_TAKEN_COURSE As String = "Taken - Course id"
+Private Const LBL_TAKEN_TITLE  As String = "Taken - Course title"
+Private Const LBL_TAKEN_DATE   As String = "Taken - Date completed"
 
 Private Const YEARS_VALID As Integer = 5
 
@@ -76,10 +83,12 @@ Public Sub BuildReviewFuzzy()
     arrT = ReadA1(wsT)            ' Taken is a SOURCE table -> anchored at A1 for letters
     arrG = wsG.UsedRange.Value    ' Gaps is OUR output -> always read by header name
 
-    ' Taken (source): SrcCol respects letter mode. Gaps (our sheet): ColIdx by header.
+    ' Taken (source): resolve via Settings sheet if present, else defaults.
     Dim tEmp&, tCourse&, tTitle&, tDate&
-    tEmp = SrcCol(arrT, H_TAKEN_EMP): tCourse = SrcCol(arrT, H_TAKEN_COURSE)
-    tTitle = SrcCol(arrT, H_TAKEN_TITLE): tDate = SrcCol(arrT, H_TAKEN_DATE)
+    tEmp = SrcCol(arrT, ColSpec(LBL_TAKEN_EMP, H_TAKEN_EMP))
+    tCourse = SrcCol(arrT, ColSpec(LBL_TAKEN_COURSE, H_TAKEN_COURSE))
+    tTitle = SrcCol(arrT, ColSpec(LBL_TAKEN_TITLE, H_TAKEN_TITLE))
+    tDate = SrcCol(arrT, ColSpec(LBL_TAKEN_DATE, H_TAKEN_DATE))
 
     Dim gEmp&, gJob&, gCourse&, gTitle&
     gEmp = ColIdx(arrG, "Employee ID"): gJob = ColIdx(arrG, "New Job Code")
@@ -307,6 +316,28 @@ End Function
 Private Function SrcCol(arr As Variant, spec As String) As Long
     If Len(spec) = 0 Then SrcCol = 0: Exit Function
     If USE_COLUMN_LETTERS Then SrcCol = LetterToCol(spec) Else SrcCol = ColIdx(arr, spec)
+End Function
+
+Private Function ColSpec(label As String, def As String) As String
+    ' effective spec: value from the Settings sheet (by label) if present, else default
+    ColSpec = def
+    If Not USE_COLUMN_LETTERS Then Exit Function
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(SHEET_SETTINGS)
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+    Dim arr As Variant: arr = ws.UsedRange.Value
+    If Not IsArray(arr) Then Exit Function
+    If UBound(arr, 2) < 2 Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(arr, 1)
+        If StrComp(Trim$(CStr2(arr(i, 1))), label, vbTextCompare) = 0 Then
+            Dim v As String: v = Trim$(CStr2(arr(i, 2)))
+            If v <> "" Then ColSpec = v
+            Exit Function
+        End If
+    Next i
 End Function
 
 Private Function LetterToCol(s As String) As Long

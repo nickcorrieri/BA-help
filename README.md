@@ -65,6 +65,21 @@ in the CONFIG block to match your sheet, save.
 > Prefer matching by header name instead? Set `USE_COLUMN_LETTERS = false` and
 > put the header text in those same CONFIG slots. Both modes are tested.
 
+### Or let the tool ask you at run time
+
+Don't want to touch the CONFIG at all? Each tool can ask for the columns when it
+runs (toggle, default off). They all share one **`Settings`** sheet, so a choice
+made in any tool is honored by the others.
+
+| Tool | Toggle | What "ask" does |
+|------|--------|-----------------|
+| Office Script | `ASK_VIA_SETTINGS` (default **on**) | First run creates a **`Settings`** sheet prefilled with the default letters. Edit the letters there and re-run. |
+| VBA | `ASK_AT_RUNTIME` (default off) | Run **BuildGaps** → it asks you to **click each column**, then saves your picks to the `Settings` sheet. |
+| Python | `ASK_AT_RUNTIME` (default off) | On run it **prompts in the terminal** for the four Taken column letters (press Enter to keep a default). |
+
+Leave the toggles off to just use the prefilled letters. Any manually-filled
+`Settings` sheet is always honored (blank cells fall back to the defaults).
+
 The job key is **`COMBO`** = `DEPT-CODE` + `JOB-CODE` **glued with no separator**
 (e.g. `4150` + `299` = **`4150299`**), so a nurse only gets courses for her
 specific department+job. The `Roster`'s new-job column must therefore hold the

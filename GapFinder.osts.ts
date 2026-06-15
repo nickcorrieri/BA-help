@@ -30,7 +30,15 @@ const MODE: "review" | "finalize" = "review";   // flip to "finalize" for the la
 // Column letters are the easy path: just read them off the top of your sheet.
 const USE_COLUMN_LETTERS = true;
 
+// ASK-vs-DON'T-ASK: an Office Script can't pop a prompt, so "ask" = read the
+// column letters from a "Settings" sheet you fill in. On first run the script
+// creates that sheet prefilled with the defaults below; edit it and re-run.
+//   true  = use the Settings sheet (auto-created)   <- "ask"
+//   false = just use the HDR letters below          <- "don't ask"
+const ASK_VIA_SETTINGS = true;
+
 const SHEET = {
+  settings: "Settings",
   pairings: "Pairings",   // Table 1: Job Code + Course ID it requires
   taken: "Taken",         // Table 2: courses each nurse has taken
   roster: "Roster",       // the 12 nurses + their new job code
@@ -96,23 +104,25 @@ function main(workbook: ExcelScript.Workbook) {
 
 // ----------------------- main flows ---------------------------------
 function buildReview(workbook: ExcelScript.Workbook) {
+  const C = resolveCols(workbook);   // letters from the Settings sheet, or HDR defaults
+
   const pairings = readSheet(workbook, SHEET.pairings, true);
   const taken = readSheet(workbook, SHEET.taken, true);
   const roster = readSheet(workbook, SHEET.roster, true);
   const catalog = readSheet(workbook, SHEET.catalog, false); // optional
 
-  const pJob = col(pairings, HDR.pairJob), pCourse = col(pairings, HDR.pairCourse);
-  const pTitle = HDR.pairTitle ? col(pairings, HDR.pairTitle) : -1;
-  const pState = HDR.pairState ? col(pairings, HDR.pairState) : -1;
-  const tEmp = col(taken, HDR.takenEmp), tCourse = col(taken, HDR.takenCourse);
-  const tTitle = col(taken, HDR.takenTitle), tDate = col(taken, HDR.takenDate);
-  const rEmp = col(roster, HDR.rosterEmp), rNew = col(roster, HDR.rosterNewJob);
+  const pJob = col(pairings, C.pairJob), pCourse = col(pairings, C.pairCourse);
+  const pTitle = C.pairTitle ? col(pairings, C.pairTitle) : -1;
+  const pState = C.pairState ? col(pairings, C.pairState) : -1;
+  const tEmp = col(taken, C.takenEmp), tCourse = col(taken, C.takenCourse);
+  const tTitle = col(taken, C.takenTitle), tDate = col(taken, C.takenDate);
+  const rEmp = col(roster, C.rosterEmp), rNew = col(roster, C.rosterNewJob);
 
   const cutoff = cutoffNum();
 
   // optional catalog: Course ID -> Title
   const catTitle = new Map<string, string>();
-  if (catalog && HDR.pairTitle === "") {
+  if (catalog && C.pairTitle === "") {
     const cC = col(catalog, HDR.catCourse), cT = col(catalog, HDR.catTitle);
     for (const row of catalog.rows) catTitle.set(key(row[cC]), str(row[cT]));
   }
@@ -292,6 +302,62 @@ function cutoffNum(): number {
 function numToIso(n: number): string {
   const y = Math.floor(n / 10000), mo = Math.floor((n % 10000) / 100), da = n % 100;
   return `${y}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+}
+
+// --------------- column config: Settings sheet or defaults ----------
+// The fields the script needs, each with its default letter (taken from HDR).
+function settingsFields(): [string, string, string][] {
+  return [
+    ["pairCourse",   "Pairings - Course id (e.g. Course-Ext-ID)", HDR.pairCourse],
+    ["pairTitle",    "Pairings - Course title (blank = none)",    HDR.pairTitle],
+    ["pairJob",      "Pairings - Job key (COMBO)",                HDR.pairJob],
+    ["pairState",    "Pairings - State (optional)",               HDR.pairState],
+    ["takenEmp",     "Taken - Employee ID",                       HDR.takenEmp],
+    ["takenCourse",  "Taken - Course id",                         HDR.takenCourse],
+    ["takenTitle",   "Taken - Course title",                      HDR.takenTitle],
+    ["takenDate",    "Taken - Date completed",                    HDR.takenDate],
+    ["rosterEmp",    "Roster - Employee ID",                      HDR.rosterEmp],
+    ["rosterNewJob", "Roster - New job (COMBO)",                  HDR.rosterNewJob],
+  ];
+}
+
+// Returns the effective column spec for each field. With ASK_VIA_SETTINGS on,
+// reads letters from the "Settings" sheet (auto-created with defaults if absent).
+function resolveCols(workbook: ExcelScript.Workbook): { [k: string]: string } {
+  const out: { [k: string]: string } = {
+    pairJob: HDR.pairJob, pairCourse: HDR.pairCourse, pairTitle: HDR.pairTitle,
+    pairState: HDR.pairState, takenEmp: HDR.takenEmp, takenCourse: HDR.takenCourse,
+    takenTitle: HDR.takenTitle, takenDate: HDR.takenDate,
+    rosterEmp: HDR.rosterEmp, rosterNewJob: HDR.rosterNewJob,
+  };
+  if (!USE_COLUMN_LETTERS || !ASK_VIA_SETTINGS) return out;
+
+  const fields = settingsFields();
+  let ws = workbook.getWorksheet(SHEET.settings);
+  if (!ws) {
+    // first run: create the Settings sheet prefilled with defaults
+    ws = workbook.addWorksheet(SHEET.settings);
+    const rows: string[][] = [["Setting  (put the column LETTER on the right, then re-run)", "Column"]];
+    for (const [, label, def] of fields) rows.push([label, def]);
+    ws.getRangeByIndexes(0, 0, rows.length, 2).setValues(rows);
+    console.log("Created a 'Settings' sheet with default column letters. Edit it if needed, then re-run.");
+    return out; // this run uses the defaults
+  }
+  // read what's there; blanks fall back to the default
+  const used = ws.getUsedRange();
+  const byLabel = new Map<string, string>();
+  if (used) {
+    for (const r of used.getTexts().slice(1)) {
+      const label = String(r[0] || "").trim().toLowerCase();
+      const val = String(r[1] || "").trim();
+      if (label) byLabel.set(label, val);
+    }
+  }
+  for (const [k, label] of fields) {
+    const v = byLabel.get(label.toLowerCase());
+    if (v !== undefined && v !== "") out[k] = v;
+  }
+  return out;
 }
 
 // ----------------------- sheet helpers ------------------------------

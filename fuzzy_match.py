@@ -72,6 +72,11 @@ G_EMP, G_COURSE, G_TITLE = "Employee ID", "Required Course ID", "Required Course
 USE_COLUMN_LETTERS = True
 T_EMP, T_COURSE, T_TITLE, T_DATE = "A", "B", "C", "D"   # verify against your sheet
 
+# ASK-vs-DON'T-ASK: True = the script asks you to type the Taken column letters
+# when it runs (defaults shown in [brackets], press Enter to accept). False =
+# just use the T_* letters above.
+ASK_AT_RUNTIME = False
+
 # Generic words stripped before comparing titles, so the score reflects
 # the actual topic. Add your own org's filler words here.
 STOPWORDS = {
@@ -162,7 +167,23 @@ def letter_to_index(s):
     return n - 1   # "A" -> 0
 
 
-def load_taken():
+def ask_taken_letters():
+    """If ASK_AT_RUNTIME, prompt for the four Taken column letters; else defaults."""
+    if not (ASK_AT_RUNTIME and USE_COLUMN_LETTERS):
+        return T_EMP, T_COURSE, T_TITLE, T_DATE
+    print("Enter the column LETTER for each Taken field (press Enter to keep the default):")
+
+    def ask(label, default):
+        try:
+            v = input(f"  {label} [{default}]: ").strip()
+        except EOFError:
+            v = ""
+        return v or default
+    return (ask("Employee ID", T_EMP), ask("Course id", T_COURSE),
+            ask("Course title", T_TITLE), ask("Date completed", T_DATE))
+
+
+def load_taken(t_emp, t_course, t_title, t_date):
     """Return Table 2 as normalized dicts: emp, course, title, date.
     Honors USE_COLUMN_LETTERS (letters = positions, header row skipped)."""
     if not os.path.exists(TAKEN_CSV):
@@ -170,16 +191,16 @@ def load_taken():
     with open(TAKEN_CSV, newline="", encoding="utf-8-sig") as f:
         if USE_COLUMN_LETTERS:
             rows = list(csv.reader(f))[1:]  # skip header row
-            ie, ic, it, idt = (letter_to_index(x) for x in (T_EMP, T_COURSE, T_TITLE, T_DATE))
+            ie, ic, it, idt = (letter_to_index(x) for x in (t_emp, t_course, t_title, t_date))
             cell = lambda r, i: r[i] if 0 <= i < len(r) else ""
             return [{"emp": cell(r, ie), "course": cell(r, ic),
                      "title": cell(r, it), "date": cell(r, idt)} for r in rows]
         recs = list(csv.DictReader(f))
-        for c in (T_EMP, T_COURSE, T_TITLE):
+        for c in (t_emp, t_course, t_title):
             if recs and c not in recs[0]:
                 sys.exit(f"ERROR: column '{c}' not in taken.csv. Found: {list(recs[0].keys())}")
-        return [{"emp": r.get(T_EMP, ""), "course": r.get(T_COURSE, ""),
-                 "title": r.get(T_TITLE, ""), "date": r.get(T_DATE, "")} for r in recs]
+        return [{"emp": r.get(t_emp, ""), "course": r.get(t_course, ""),
+                 "title": r.get(t_title, ""), "date": r.get(t_date, "")} for r in recs]
 
 
 # ----------------------------- MATCH --------------------------------
@@ -187,7 +208,7 @@ def run_match():
     gaps = read_csv(GAPS_CSV)
     for c in (G_EMP, G_COURSE):
         need_col(gaps, c, GAPS_CSV)
-    taken = load_taken()
+    taken = load_taken(*ask_taken_letters())
 
     cutoff = cutoff_date()
 
