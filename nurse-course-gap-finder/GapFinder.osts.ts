@@ -61,9 +61,13 @@ const HDR = {
   takenCourse: "B",    // course id (whatever matches Course-ext-id from Table 1)
   takenTitle: "C",     // course title
   takenDate: "D",      // completion date
-  // ----- Roster -- VERIFY. rosterNewJob must hold the SAME kind of value as pairJob (a Combo) -----
+  // ----- Roster -- VERIFY. Two options:
+  //   A) Pre-glued:  leave rosterDept blank; rosterNewJob holds the full COMBO (e.g. "4150299")
+  //   B) Separate:   set rosterDept to the DEPT-CODE col and rosterNewJob to the JOB-CODE col;
+  //                  the script concatenates them for you so no formula is needed in the sheet.
   rosterEmp: "A",      // Employee ID
-  rosterNewJob: "B",   // new job (Combo: Dept-code + Job-code)
+  rosterDept: "",      // DEPT-CODE col -- blank = COMBO is already pre-glued in rosterNewJob
+  rosterNewJob: "B",   // full COMBO (if rosterDept blank) OR JOB-CODE col (if rosterDept set)
   // ----- Catalog (optional, only used if pairTitle == "") -----
   catCourse: "A",
   catTitle: "B",
@@ -117,6 +121,7 @@ function buildReview(workbook: ExcelScript.Workbook) {
   const tEmp = col(taken, C.takenEmp), tCourse = col(taken, C.takenCourse);
   const tTitle = col(taken, C.takenTitle), tDate = col(taken, C.takenDate);
   const rEmp = col(roster, C.rosterEmp), rNew = col(roster, C.rosterNewJob);
+  const rDept = C.rosterDept ? col(roster, C.rosterDept) : -1; // -1 = pre-glued mode
 
   const cutoff = cutoffNum();
 
@@ -166,7 +171,7 @@ function buildReview(workbook: ExcelScript.Workbook) {
 
   for (const row of roster.rows) {
     const emp = key(row[rEmp]);
-    const newJob = key(row[rNew]);
+    const newJob = rDept >= 0 ? key(row[rDept]) + key(row[rNew]) : key(row[rNew]);
     if (!emp) continue;
     const required = jobCourses.get(newJob);
     if (!required) continue; // no requirements found for this job code
@@ -317,7 +322,8 @@ function settingsFields(): [string, string, string][] {
     ["takenTitle",   "Taken - Course title",                      HDR.takenTitle],
     ["takenDate",    "Taken - Date completed",                    HDR.takenDate],
     ["rosterEmp",    "Roster - Employee ID",                      HDR.rosterEmp],
-    ["rosterNewJob", "Roster - New job (COMBO)",                  HDR.rosterNewJob],
+    ["rosterDept",   "Roster - DEPT-CODE col (blank if COMBO is pre-glued)", HDR.rosterDept],
+    ["rosterNewJob", "Roster - New job (COMBO) or JOB-CODE col", HDR.rosterNewJob],
   ];
 }
 
@@ -328,7 +334,7 @@ function resolveCols(workbook: ExcelScript.Workbook): { [k: string]: string } {
     pairJob: HDR.pairJob, pairCourse: HDR.pairCourse, pairTitle: HDR.pairTitle,
     pairState: HDR.pairState, takenEmp: HDR.takenEmp, takenCourse: HDR.takenCourse,
     takenTitle: HDR.takenTitle, takenDate: HDR.takenDate,
-    rosterEmp: HDR.rosterEmp, rosterNewJob: HDR.rosterNewJob,
+    rosterEmp: HDR.rosterEmp, rosterDept: HDR.rosterDept, rosterNewJob: HDR.rosterNewJob,
   };
   if (!USE_COLUMN_LETTERS || !ASK_VIA_SETTINGS) return out;
 

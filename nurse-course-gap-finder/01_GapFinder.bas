@@ -64,9 +64,13 @@ Private Const H_TAKEN_COURSE As String = "B"  ' course id (matches Course-ext-id
 Private Const H_TAKEN_TITLE  As String = "C"  ' course title
 Private Const H_TAKEN_DATE   As String = "D"  ' completion date
 
-' Roster (VERIFY). H_ROST_NEWJOB must hold the SAME kind of value as H_PAIR_JOB (a Combo)
+' Roster (VERIFY). Two options:
+'   A) Pre-glued:  leave H_ROST_DEPT blank; H_ROST_NEWJOB holds the full COMBO (e.g. "4150299")
+'   B) Separate:   set H_ROST_DEPT to the DEPT-CODE col and H_ROST_NEWJOB to the JOB-CODE col;
+'                  the macro concatenates them -- no formula needed in the sheet.
 Private Const H_ROST_EMP    As String = "A"   ' Employee ID
-Private Const H_ROST_NEWJOB As String = "B"   ' new job (Combo: Dept-code + Job-code)
+Private Const H_ROST_DEPT   As String = ""    ' DEPT-CODE col (blank = COMBO is pre-glued in H_ROST_NEWJOB)
+Private Const H_ROST_NEWJOB As String = "B"   ' full COMBO (if H_ROST_DEPT blank) or JOB-CODE col
 
 ' Catalog (only used if SHEET_CATALOG <> "" and Pairings has no title)
 Private Const H_CAT_COURSE As String = "A"
@@ -85,8 +89,9 @@ Private Const LBL_TAKEN_EMP    As String = "Taken - Employee ID"
 Private Const LBL_TAKEN_COURSE As String = "Taken - Course id"
 Private Const LBL_TAKEN_TITLE  As String = "Taken - Course title"
 Private Const LBL_TAKEN_DATE   As String = "Taken - Date completed"
-Private Const LBL_ROST_EMP As String = "Roster - Employee ID"
-Private Const LBL_ROST_JOB As String = "Roster - New job (COMBO)"
+Private Const LBL_ROST_EMP  As String = "Roster - Employee ID"
+Private Const LBL_ROST_DEPT As String = "Roster - DEPT-CODE col (blank if COMBO is pre-glued)"
+Private Const LBL_ROST_JOB  As String = "Roster - New job (COMBO) or JOB-CODE col"
 ' ====================================================================
 
 
@@ -129,9 +134,11 @@ Public Sub BuildGaps()
     tCourse = SrcCol(arrT, ColSpec(LBL_TAKEN_COURSE, H_TAKEN_COURSE))
     tDate = SrcCol(arrT, ColSpec(LBL_TAKEN_DATE, H_TAKEN_DATE))
 
-    Dim rEmp&, rNew&
+    Dim rEmp&, rNew&, rDeptCol&
     rEmp = SrcCol(arrR, ColSpec(LBL_ROST_EMP, H_ROST_EMP))
     rNew = SrcCol(arrR, ColSpec(LBL_ROST_JOB, H_ROST_NEWJOB))
+    Dim sDept$: sDept = ColSpec(LBL_ROST_DEPT, H_ROST_DEPT)
+    rDeptCol = IIf(Len(Trim(sDept)) > 0, SrcCol(arrR, sDept), 0)
 
     If pJob = 0 Or pCourse = 0 Or tEmp = 0 Or tCourse = 0 Or tDate = 0 _
        Or rEmp = 0 Or rNew = 0 Then
@@ -205,7 +212,12 @@ NextPair:
 
     For i = 2 To UBound(arrR, 1)
         emp = NKey(arrR(i, rEmp))
-        Dim newJob$: newJob = NKey(arrR(i, rNew))
+        Dim newJob$
+        If rDeptCol > 0 Then
+            newJob = NKey(arrR(i, rDeptCol)) & NKey(arrR(i, rNew))
+        Else
+            newJob = NKey(arrR(i, rNew))
+        End If
         If emp <> "" Then
             If Not jobCourses.Exists(newJob) Then
                 noReq = noReq & vbCrLf & "  - Emp " & emp & " / job '" & newJob & "'"
@@ -374,10 +386,10 @@ Public Sub AskAllColumns()
     Dim labels As Variant, defs As Variant
     labels = Array(LBL_PAIR_COURSE, LBL_PAIR_TITLE, LBL_PAIR_JOB, LBL_PAIR_STATE, _
                    LBL_TAKEN_EMP, LBL_TAKEN_COURSE, LBL_TAKEN_TITLE, LBL_TAKEN_DATE, _
-                   LBL_ROST_EMP, LBL_ROST_JOB)
+                   LBL_ROST_EMP, LBL_ROST_DEPT, LBL_ROST_JOB)
     defs = Array(H_PAIR_COURSE, H_PAIR_TITLE, H_PAIR_JOB, H_PAIR_STATE, _
                  H_TAKEN_EMP, H_TAKEN_COURSE, H_TAKEN_TITLE, H_TAKEN_DATE, _
-                 H_ROST_EMP, H_ROST_NEWJOB)
+                 H_ROST_EMP, H_ROST_DEPT, H_ROST_NEWJOB)
     Dim ws As Worksheet: Set ws = EnsureSettings(labels, defs)
 
     Dim i As Long
