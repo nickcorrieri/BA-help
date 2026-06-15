@@ -1,0 +1,5 @@
+Employee ID,New Job Code,Required Course ID,Required Course Title,Best Match Taken Title,Best Match Course ID,Similarity %,Taken Date,Suggestion,Needs Course? (yes/no)
+1001,D5-RN,HZ-200,Taking Care of Hazardous Materials,Hazardous Materials Handling,HAZ-99,71,2024-03-10,MAYBE - check it,yes
+1001,D5-RN,FIRE-101,Fire Safety in the Workplace,Patient Privacy (HIPAA),HIPAA-1,19,2024-05-01,no close match - needs it,yes
+1001,D5-RN,BLS-500,Basic Life Support for Healthcare Providers,CPR and AED Certification,CPR-12,26,2023-11-01,no close match - needs it,yes
+1002,D5-RN,HZ-200,Taking Care of Hazardous Materials,Slip Trip and Fall Prevention,SLIP-1,32,2024-05-01,no close match - needs it,yes
